@@ -1,0 +1,63 @@
+services:
+    # Aplikasi Laravel (Menggunakan PHP 8.3 CLI Resmi)
+    laravel_app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/var/webapps
+        command: php artisan serve --host=0.0.0.0 --port=8000
+        depends_on:
+            - mysql
+            - kafka
+
+    # Database MySQL
+    mysql:
+        image: mysql:8.0
+        container_name: mysql_db
+        ports:
+            - "3307:3306"
+        environment:
+            MYSQL_ROOT_PASSWORD: 961808
+            MYSQL_PASSWORD: 961808
+            MYSQL_DATABASE: ecommerce-kafka
+        volumes:
+            - mysql_data:/var/lib/mysql
+
+    # Koordinator Metadata Kafka
+    zookeeper:
+        image: confluentinc/cp-zookeeper:7.5.0
+        container_name: zookeeper
+        environment:
+            ZOOKEEPER_CLIENT_PORT: 2181
+
+    # Broker Kafka Lokal
+    kafka:
+        image: confluentinc/cp-kafka:7.5.0
+        container_name: kafka
+        ports:
+            - "9092:9092"
+        depends_on:
+            - zookeeper
+        environment:
+            KAFKA_BROKER_ID: 1
+            KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+            # BARIS DI BAWAH INI DIPERBARUI AGAR DOCKER MENGIJINKAN KONEKSI INTERNAL DARI LARAVEL
+            KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+            KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+    mailpit:
+        image: axllent/mailpit:latest
+        container_name: ecommerce-mailpit
+        ports:
+            - "1025:1025" # Jalur pengiriman email dari Laravel
+            - "8025:8025" # Jalur untuk melihat inbox di browser
+        network_mode: "bridge"
+
+volumes:
+    mysql_data:
