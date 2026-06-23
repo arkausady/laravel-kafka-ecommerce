@@ -1,58 +1,97 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🛒 E-Commerce Enterprise (Laravel + Apache Kafka + Docker +Mailpit)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Proyek ini adalah sistem e-commerce berskala enterprise yang mendemonstrasikan integrasi arsitektur asinkronus (_Event-Driven Architecture_). Aplikasi ini menggunakan **Apache Kafka** sebagai _message broker_ untuk menangani antrean pemotongan stok secara cepat, serta **Mailpit** sebagai _local SMTP server_ untuk menangani simulasi pengiriman email tagihan secara otomatis tanpa membebani performa web utama.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🏗️ Alur Arsitektur Sistem
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+1. **User** melakukan _checkout_ produk di halaman Web.
+2. **Laravel Controller** melakukan validasi awal, membuat data order dengan status `pending`, lalu melempar _payload_ data ke Apache Kafka pada topik `order-placed` secara asinkronus (cepat).
+3. **Kafka Consumer** (`ProcessOrderHandler`) yang berjalan di _background_ menangkap data tersebut, mengunci baris database untuk menghindari _race condition_, memotong stok produk, mengubah status menjadi `Waiting Payment`, dan mengirim email tagihan.
+4. **Mailpit** menangkap email tersebut secara lokal sehingga dapat diuji coba tanpa internet.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🛠️ Prasyarat (Prerequisites)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Sebelum memulai, pastikan laptop Anda sudah terinstal beberapa perangkat lunak berikut:
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Wajib untuk menjalankan MySQL, Kafka, Zookeeper, dan Mailpit)
+- PHP >= 8.1
+- Composer
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## 🚀 Langkah Konfigurasi & Instalasi
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Ikuti langkah-langkah di bawah ini untuk merakit dan menjalankan aplikasi di komputer lokal Anda:
+
+### 1. Clone Repositori
+
+Buka terminal atau Git Bash Anda, lalu jalankan perintah berikut:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone [https://github.com/USERNAME_ANDA/NAMA_REPOSITORI_ANDA.git](https://github.com/USERNAME_ANDA/NAMA_REPOSITORI_ANDA.git)
+cd NAMA_REPOSITORI_ANDA
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Instal Dependensi PHP (Vendor)
 
-## Contributing
+composer install
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Siapkan File Environment (.env)
 
-## Code of Conduct
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=[http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# ==========================================
 
-## Security Vulnerabilities
+# KONEKSI DATABASE (Menembak ke MySQL Docker)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# ==========================================
 
-## License
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3307
+DB_DATABASE=laravel
+DB_USERNAME=root
+DB_PASSWORD=root
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# ==========================================
+
+# KONEKSI EMAIL (Menembak ke SMTP Mailpit Docker)
+
+# ==========================================
+
+MAIL_MAILER=smtp
+MAIL_HOST=127.0.0.1
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+### 4. Generate Application Key
+
+php artisan key:generate
+
+### 5. Jalankan Infrastruktur Docker (Backend)
+
+docker compose up -d
+
+### 6. Jalankan Migrasi Database (Migration)
+
+php artisan migrate
+
+### 7. Jalankan aplikasi
+
+http://localhost:8000/
+
+### 8. Jalankan EMail
+
+http://localhost:8025/
