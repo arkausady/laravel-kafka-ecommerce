@@ -95,3 +95,8 @@ http://localhost:8000/
 ### 8. Jalankan EMail
 
 http://localhost:8025/
+
+### 9. Running Project
+
+docker compose up -d --build
+docker compose exec laravel_app php artisan kafka:consume-orders
